@@ -1,75 +1,255 @@
 from telebot import types
 import telebot
-from config import BASE_URL, EPISODE_LIST_PORTION, GENRES_LIST, RECENT_RELEASE_ANIME_URL, TOKEN, POPULAR_ANIME_URL, ANIME_LIST_PORTION, TOP_AIRIN_URL
+from config import (
+    TOKEN, 
+    RECENT_RELEASE_ANIME_URL, 
+    POPULAR_ANIME_URL, 
+    DETAILS_ANIME_URL, 
+    SEARCH_ANIME_URL, 
+    GENRE_ANIME_URL, 
+    MOVIES_ANIME_URL, 
+    TOP_AIRIN_URL,
+    GENRES_LIST, 
+    EPISODE_LIST_PORTION, 
+)
 import requests
 import os
 import json
 
 # global variables
-
-# get recent release list
-# get popular list
-# anime number where break cycle
+anime_list = []
 anime_number = 0
-# episode number where break cycle
-episode_number = 0
-# episode list
 episode_list = []
-# favorit number where break cycle
-favorit_number = 0
+episode_number = 0
 
 bot = telebot.TeleBot(TOKEN)
 
-@bot.message_handler(commands=['start', 'release', 'popular', 'genre', 'movies', 'top_airin', 'favorite', 'random', 'find'])
+# start
+@bot.message_handler(commands=['start', 'help'])
 def start(message):
-    cmd = message.text.split()
-    if cmd[0] == '/start':
-        welcome_message = '<b>Welcome!</b>\nThis project is implemented using the free anime streaming ' \
-            'restful API serving anime from GogoanimeGogoAnime API.\n' \
-            'Enjoy watching you!'
-        bot.send_message(message.chat.id, welcome_message, parse_mode='html')   
-    elif cmd[0] == '/release':
-        show_list(message, RECENT_RELEASE_ANIME_URL) 
-    elif cmd[0] == '/popular':
-        show_list(message, POPULAR_ANIME_URL)
-    elif cmd[0] == '/genre':
-        show_list(message, f'{BASE_URL}/genre/{cmd[1]}')
-    elif cmd[0] == '/top_airin':
-        show_list(message, TOP_AIRIN_URL)        
-    elif cmd[0] == '/favorite':
-        show_favorit_list(message)
+    username = message.from_user.username
+    
+    welcome_message = f'<b>Welcome, {username}!</b>\nThis project is implemented using the free anime streaming ' \
+            'restful API serving anime from GogoanimeGogoAnime API.'
+    
+    help_message = '\n Helper:' \
+            '\n/release             - get receant episodes' \
+            '\n/popular             - get popular anime' \
+            '\n/search              - get anime search' \
+            '\n/movies              - get anime movies' \
+            '\n/top-airing          - get top airing' \
+            '\n/genre <genre type>  - get anime genres' \
+            '\n/favorite            - get favorite anime' \
+            '\n\nEnjoy watching you!'
+    
+    msg = help_message
+    
+    if message.text == 'start':
+        msg = welcome_message + help_message
 
-def show_list(message, url):
-    response = requests.get(url)
-    anime_list = response.json()
+    bot.send_message(message.chat.id, msg, parse_mode='html')   
 
-    for anime in anime_list:
-        try:
-            url = f'{BASE_URL}/anime-details/{anime["animeId"]}'
-            r = requests.get(url)
-            anime_details = r.json()
+# get recent release anime list
+@bot.message_handler(commands=['recent'])
+def get_recent(message):
+    global anime_list
+    global anime_number
+    
+    try:
+        response = requests.get(RECENT_RELEASE_ANIME_URL)
+        anime_list = response.json()
+        anime_number = 0
+    except Exception as e:
+        print(e)
+        bot.send_message(message.chat.id, 'Sorry, i can\'t access api service')
+        return 
 
-            caption = f'<b>{anime["animeTitle"]}</b>\n'
-            
-            limit = 8
-            n = 0
-            for episode in anime_details["episodesList"]:
-                caption += f'\n<a href="{episode["episodeUrl"]}">Episode: {episode["episodeNum"]}</a>'
-                n += 1
-                if n == limit:
-                    break
+    fields = [
+        {"title":"Episode: ", "field":"episodeNum"}, 
+        {"title":"SUB of DUB: ", "field":"subOrDub"}
+    ]
+    show_anime_detail(message, fields) 
 
-            markup = types.InlineKeyboardMarkup()
+# get popular anime list
+@bot.message_handler(commands=['popular'])
+def get_popular(message):
+    global anime_list
+    global anime_number
+    
+    try:
+        response = requests.get(POPULAR_ANIME_URL)
+        anime_list = response.json()
+        anime_number = 0
+    except Exception as e:
+        print(e)
+        bot.send_message(message.chat.id, 'Sorry, i can\'t access api service')
+        return
+
+    fields = [
+        {"title":"Released:", "field":"releasedDate"}
+    ]
+    show_anime_detail(message, fields) 
+
+# search anime
+@bot.message_handler(commands=['search'])
+def search(message):
+    global anime_list
+    global anime_number
+    
+    cmds = message.text.split()
+    if len(cmds) != 2:
+        bot.send_message(message.chat.id, 'Sorry, I didn\'t understand your command')
+        return
+
+    try:
+        response = requests.get(f'{SEARCH_ANIME_URL}?keyw={cmds[1]}')
+        anime_list = response.json()
+        anime_number = 0
+    except Exception as e:
+        print(e)
+        bot.send_message(message.chat.id, 'Sorry, i can\'t access api service')
+        return    
+
+    fields = [
+        {"title":"Released:", "field":"status"}
+    ]
+    show_anime_detail(message, anime_list, fields) 
+
+# get anime movies
+@bot.message_handler(commands=['movies'])
+def get_movies(message):
+    global anime_list
+    global anime_number
+    
+    try:
+        response = requests.get(MOVIES_ANIME_URL)
+        anime_list = response.json()
+        anime_number = 0
+    except Exception as e:
+        print(e)
+        bot.send_message(message.chat.id, 'Sorry, i can\'t access api service')
+        return    
+
+    fields = [
+        {"title":"Released:", "field":"releasedDate"}
+    ]
+    show_anime_detail(message, fields) 
+
+# get top airing anime
+@bot.message_handler(commands=['top-airing'])
+def get_top_airing(message):
+    global anime_list
+    global anime_number
+    
+    try:
+        response = requests.get(TOP_AIRIN_URL)
+        anime_list = response.json()
+        anime_number = 0
+    except Exception as e:
+        print(e)
+        bot.send_message(message.chat.id, 'Sorry, i can\'t access api service')
+        return
+
+    fields = [
+        {"title":"Latest episode:", "field":"latestEp"}
+    ]
+    show_anime_detail(message, fields) 
+
+# get genre anime
+@bot.message_handler(commands=['genre'])
+def get_genre(message):
+    global anime_list
+    global anime_number
+    
+    cmds = message.text.split()
+    if len(cmds) != 2:
+        bot.send_message(message.chat.id, 'Sorry, I didn\'t understand your command')
+        return
+
+    if cmds[1] not in GENRES_LIST:
+        bot.send_message(message.chat.id, f'This genre is not available.\nList of available genres: {GENRES_LIST}')
+        return
+
+    try:
+        response = requests.get(f'{GENRE_ANIME_URL}/{cmds[1]}')
+        anime_list = response.json()
+        anime_number = 0
+    except Exception as e:
+        print(e)
+        bot.send_message(message.chat.id, 'Sorry, i can\'t access api service')
+        return    
+
+    fields = [
+        {"title":"Released:", "field":"releasedDate"}
+    ]
+    show_anime_detail(message, anime_list, fields) 
+
+# get favorite anime list
+@bot.message_handler(commands=['favorite'])
+def get_favorite(message):
+    global anime_list
+    global anime_number
+    
+    username = message.from_user.username
+    user_file = f'user_favorites\{username}.txt'
+
+    try:
+        anime_list = []
+        if os.path.exists(user_file):
+            f = open(user_file, "r")
+            json_content = f.read()
+            anime_list = json.loads(json_content)
+            f.close()
+    except Exception as e:
+        print(e)
+        bot.send_message(message.chat.id, 'Sorry, i can\'t access user favorite file.')
+        return
+
+    if len(anime_list) == 0:
+        bot.send_message(message.chat.id, 'Favorites list is empty.')
+        return
+
+    anime_number = 0
+    fields = []
+
+    show_anime_detail(message, fields, is_favorite=True) 
+
+# show anime detail
+def show_anime_detail(message, fields, is_favorite=False):
+    global anime_number
+
+    try:
+        caption = f'<b>{anime_list[anime_number]["animeTitle"]}</b>'
+        for field in fields:
+            caption += f'\n{anime_list[anime_number][field]}'
+
+        markup = types.InlineKeyboardMarkup()
+        
+        if is_favorite:
             markup.row(
-                types.InlineKeyboardButton('📺 All series', callback_data=f'watch_{anime["animeId"]}'),
-                types.InlineKeyboardButton('⭐ Add favorite', callback_data=f'add_favorite_{anime["animeId"]}') 
+                types.InlineKeyboardButton('📺 Episodes', callback_data=f'show_episodes'),
+                types.InlineKeyboardButton('⭐ Remove from favorite', callback_data=f'add_favorite') 
             )
-            
-            show_photo(message, anime["animeId"], anime["animeImg"], caption, markup)
+        else:
+            markup.row(
+                types.InlineKeyboardButton('📺 Episodes', callback_data=f'show_episodes'),
+                types.InlineKeyboardButton('⭐ Add favorite', callback_data=f'add_favorite') 
+            )
 
-        except Exception as e:
-            print(e)
+        if anime_number < len(anime_list) - 1:
+            markup.row(
+                types.InlineKeyboardButton('Next', callback_data=f'next') 
+            )    
+        
+        show_photo(message, anime_list[anime_number]["animeId"], 
+            anime_list[anime_number]["animeImg"], caption, markup)
 
+    except Exception as e:
+        print(e)
+        bot.send_message(message.chat.id, 'Sorry, i can\'t show anime details.')
+        return
+
+# show anime photo
 def show_photo(message, anime_id, url, caption, markup):
     image_file = f'img/{anime_id}.png'
 
@@ -81,184 +261,127 @@ def show_photo(message, anime_id, url, caption, markup):
     with open(image_file, 'rb') as f:
         bot.send_photo(message.chat.id, photo=f, caption=caption, reply_markup=markup, parse_mode='html')
 
-
+# callback query
 @bot.callback_query_handler(func=lambda call:True)
 def buttons_handler(call):
-    global recent_release_anime_list
-    global popular_anime_list
+    global anime_list
+    global anime_number
     global episode_list
     global episode_number
     
-    if call.data == 'next_recent_release':
-        show_recent_release_list(call.message)
-    elif call.data == 'next_popular':
-        show_popular_list(call.message)    
-    elif call.data == 'next_episodes':
-        __show_anime_episode_buttons(call.message, episode_list)
-
-    anime_list = []
-    
-    for anime in popular_anime_list:
-        anime_json = {}
-        anime_json["animeId"] = anime["animeId"]
-        anime_json["animeImg"] = anime["animeImg"]
-        anime_json["animeTitle"] = anime["animeTitle"]
-        anime_list.append(anime_json)
-
-    for anime in recent_release_anime_list:
-        anime_json = {}
-        anime_json["animeId"] = anime["animeId"]
-        anime_json["animeImg"] = anime["animeImg"]
-        anime_json["animeTitle"] = anime["animeTitle"]
-        if __check_duplicate(anime_json, anime_list):
-            anime_list.append(anime_json)
-    
-    for anime in anime_list:
-        if call.data == f'list_{anime["animeId"]}':
+    if call.data == 'show_episodes':
+        try:
+            response = requests.get(f'{DETAILS_ANIME_URL}/{anime_list[anime_number]["animeId"]}')
+            anime_details = response.json(response)
+            episode_list = anime_details["episodesList"]
             episode_number = 0
-            __show_anime_detail(call.message, anime["animeId"])
+            show_episodes(call.message)
 
-        if call.data == f'add_{anime["animeId"]}':
-            username = call.message.chat.username
-            user_file = f'user_favorites\{username}.txt'
+        except Exception as e:
+            print(e)
+            bot.send_message(call.message.chat.id, 'Sorry, i can\'t show anime episodes.')
+            return
 
-            user_favorites_list = []
-            if os.path.exists(user_file):
-                f = open(user_file, "r")
-                json_content = f.read()
-                user_favorites_list = json.loads(json_content)
-                f.close()
-            
-            user_favorites_list.append(anime)
-            jsonString = json.dumps(user_favorites_list)
-            f = open(user_file, "w")
-            f.write(jsonString)
-            f.close()
+    elif call.data == 'add_favorite':
+        add_favorite(call.message)
 
-
-def __check_duplicate(anime_json, anime_list):
-    for a in anime_list:
-        if anime_json["animeId"] == a["animeId"]:
-            return False
-    return True
-
-
-def __show_anime(message, anime_id, anime_img, anime_title, anime_caption, markup):
+    elif call.data == 'next':    
+        get_next(call.message)
     
-    image_file = f'img/{anime_id}.png'
-
-    __show_anime_photo(message, anime_img, image_file, anime_title)
-    bot.send_message(message.chat.id, anime_caption, reply_markup=markup)
-
-
-def __show_next_button(message, call_caption: str):
-    markup_next = types.InlineKeyboardMarkup()
-    markup_next.row(
-        types.InlineKeyboardButton('Next', callback_data=call_caption)
-    )
-    bot.send_message(message.chat.id, 'for continue click on the <b>Next</b>', parse_mode='html', reply_markup=markup_next)
-
-
-
-
-
-def __show_anime_episode_buttons(message, episode_list):
+# show anime episodes
+def show_episodes(message):
+    global anime_list
+    global anime_number
+    global episode_list
     global episode_number
 
-    markup = types.InlineKeyboardMarkup()
-    buttons = []
-    n = 0
-    for episode in episode_list:
-        if n <= episode_number:
-            n += 1
-            continue
-
-        button = types.InlineKeyboardButton(
-            f'Episode:{episode["episodeNum"]}', 
-            callback_data=f'detail_{episode["episodeId"]}',
-            url=episode["episodeUrl"])
-
-        buttons.append(button)
-
-        n += 1
-
-        if n % EPISODE_LIST_PORTION == 0:
+    markup = types.InlineKeyboardMarkup(row_width=4)
+    
+    while episode_number < len(episode_list) - 1:
+        markup.add(
+            types.InlineKeyboardButton(f'Episode: {episode_list[episode_number]["episodeNum"]}', 
+                url=episode_list[episode_number]["episodeUrl"])
+        )
+        episode_number += 1
+        if (episode_number + 1) % EPISODE_LIST_PORTION == 0:
             break
     
-    episode_number = n
-    markup.row(buttons[0], buttons[1], buttons[2], buttons[3])
-    markup.row(buttons[4], buttons[5], buttons[6], buttons[7])
     bot.send_message(message.chat.id, 'Last episodes: ', reply_markup=markup)     
+    
     if episode_number < len(episode_list) - 1:
-        __show_next_button(message, 'next_episodes')
+        markup.row(
+            types.InlineKeyboardButton('📺 Next episodes', callback_data=f'show_episodes'),    
+        )
 
-
-def __show_anime_detail(message, anime_id):
-    global episode_list
-    global episode_number
-
-    url = f'{BASE_URL}/anime-details/{anime_id}'
-    r = requests.get(url)
-    anime_detail = r.json()
-
-    image_file = f'img/{anime_id}.png'
-
-    __show_anime_photo(message, anime_detail["animeImg"], image_file, anime_detail["animeTitle"])
-
-    episode_list = anime_detail["episodesList"]
-    episode_number = -1
-    __show_anime_episode_buttons(message, episode_list)
-
-
-
-def show_favorit_list(message):
-    global favorit_number
-
+# add anime to favorite list
+def add_favorite(message):
+    global anime_list
+    global anime_number
+    
     username = message.from_user.username
     user_file = f'user_favorites\{username}.txt'
 
-    user_favorites_list = []
+    favorite_list = []
     if os.path.exists(user_file):
-        f = open(user_file, "r")
-        json_content = f.read()
-        user_favorites_list = json.loads(json_content)
-        f.close()
-
-    if len(user_favorites_list) == 0:
-        bot.send_message(message.chat.id, 'Favorites list is empty.')
-        return
-
-    n = 0
-
-    for anime in user_favorites_list:
-        if n <= favorit_number:
-            n += 1
-            continue
-
         try:
-            markup = types.InlineKeyboardMarkup()
-            markup.row(
-                types.InlineKeyboardButton(' 🗒 series list', callback_data=f'list_{anime["animeId"]}'),
-                types.InlineKeyboardButton(' ➕ add to favorite', callback_data=f'add_{anime["animeId"]}')
-            )
-            __show_anime(
-                message, 
-                anime["animeId"], 
-                anime["animeImg"], 
-                anime["animeTitle"], 
-                f' ',
-                markup)
-        except:
-            favorit_number = n + 1
-            __show_next_button(message, 'next_favorit')
-            break
-        
-        n += 1
+            f = open(user_file, "r")
+            json_content = f.read()
+            favorite_list = json.loads(json_content)
+        except Exception as e:
+            print(e)
+            bot.send_message(message.chat.id, 'Sorry, I can\'t read user favorite file')
+        finally:
+            f.close()
 
-        if n > anime_number and n % ANIME_LIST_PORTION == 0:
-            favorit_number = n - 1
-            __show_next_button(message, 'next_favorit')
-            break   
+    
+    if is_not_duplicate(favorite_list, anime_list[anime_number]):
+        anime_json = {
+            "animeId": anime_list[anime_number]["animeId"],
+            "animeTitle": anime_list[anime_number]["animeTitle"],
+            "animeImg": anime_list[anime_number]["animeImg"],
+        }
+        favorite_list.append(anime_json)
+        jsonString = json.dumps(favorite_list)
+        try:
+            f = open(user_file, "w")
+            f.write(jsonString)
+        except Exception as e:
+            print(e)
+            bot.send_message(message.chat.id, 'Sorry, I can\'t write user favorite file')    
+        finally:    
+            f.close()
 
+# check duplicat element in list
+def is_not_duplicate(elements, elem):
+    for e in elements:
+        if e["animeId"] == elem["animeId"]:
+            return False
+    return True        
+
+# get next anime
+def get_next(message):
+    global anime_list
+    global anime_number
+
+    if anime_number >= len(anime_list) - 1:
+        bot.send_message(message.chat.id, 'This is the last anime on the list.')
+        return
+    
+    anime_number += 1
+
+    show_anime_detail(message)
+
+bot.set_my_commands([
+    telebot.types.BotCommand("/start", "main menu"),
+    telebot.types.BotCommand("/help", "print helper"),
+    telebot.types.BotCommand("/release", "get receant episodes"),
+    telebot.types.BotCommand("/popular", "get popular anime"),
+    telebot.types.BotCommand("/search", "get anime search"),
+    telebot.types.BotCommand("/movies", "get anime movies"),
+    telebot.types.BotCommand("/top-airing", "get top airing"),
+    telebot.types.BotCommand("/genre", "get anime genres"),
+    telebot.types.BotCommand("/favorite", "get favorite anime"),
+
+])
 
 bot.infinity_polling()
