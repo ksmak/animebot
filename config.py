@@ -5,7 +5,7 @@ POPULAR_ANIME_URL = f'{BASE_URL}/popular'
 SEARCH_ANIME_URL = f'{BASE_URL}/search'
 GENRE_ANIME_URL =f'{BASE_URL}/genre'
 MOVIES_ANIME_URL = f'{BASE_URL}/anime-movies'
-TOP_AIRIN_URL = f'{BASE_URL}/top-airin'
+TOP_AIRING_URL = f'{BASE_URL}/top-airing'
 DETAILS_ANIME_URL = f'{BASE_URL}/anime-details'
 GENRES_LIST = ['action','adventure','cars','comedy','crime','dementia','demons','drama','dub','ecchi',
     'family','fantasy','game','gourmet','harem','historical','horror','josei','kids','magic','martial-arts',
