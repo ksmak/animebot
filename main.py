@@ -40,10 +40,9 @@ def start(message):
     
     user_list[user_id] = {}
 
-    welcome_message = f'<b>Welcome, {username}!</b>\nThis project is implemented using the free anime streaming ' \
-            'restful API serving anime from GogoanimeGogoAnime API.'
+    welcome_message = f'<b>Welcome, {username}!</b>\nThis project is implemented using by the <b>Gogoanime API</b>.'
     
-    help_message = '\n Helper:' \
+    help_message = '\n\n Helper:' \
             '\n\n/recent - get recent release episodes' \
             '\n\n/popular - get popular anime' \
             '\n\n/search - get anime search' \
