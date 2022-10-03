@@ -266,7 +266,7 @@ def buttons_handler(call):
 def show_episodes(message):
     global user_list
     
-    user_id = str(message.from_user.id)
+    user_id = str(message.chat.id)
 
     episode_list = user_list[user_id]["episode_list"]
     episode_number = user_list[user_id]["episode_number"]
@@ -306,7 +306,7 @@ def show_episodes(message):
 def select_episode(message):
     global user_list
     
-    user_id = str(message.from_user.id)
+    user_id = str(message.chat.id)
 
     episode_list = user_list[user_id]["episode_list"]
     
@@ -336,7 +336,7 @@ def select_episode(message):
 def add_favorite(message):
     global user_list
     
-    user_id = str(message.from_user.id)
+    user_id = str(message.chat.id)
     
     anime_list = user_list[user_id]["anime_list"]
     anime_number = user_list[user_id]["anime_number"]
@@ -369,7 +369,7 @@ def add_favorite(message):
 def remove_favorite(message):
     global user_list
     
-    user_id = str(message.from_user.id)
+    user_id = str(message.chat.id)
         
     anime_list = user_list[user_id]["anime_list"]
     anime_number = user_list[user_id]["anime_number"]
