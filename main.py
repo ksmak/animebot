@@ -33,8 +33,13 @@ bot = telebot.TeleBot(TOKEN)
 # start
 @bot.message_handler(commands=['start', 'help'])
 def start(message):
+    global user_list
+
+    user_id = str(message.from_user.id)
     username = message.from_user.first_name
     
+    user_list[user_id] = {}
+
     welcome_message = f'<b>Welcome, {username}!</b>\nThis project is implemented using the free anime streaming ' \
             'restful API serving anime from GogoanimeGogoAnime API.'
     
