@@ -166,7 +166,7 @@ def show_anime_list(message, url, title):
 def show_anime_detail(message, is_favorite=False):
     global user_list
     
-    user_id = str(message.from_user.id)
+    user_id = str(message.chat.id)
     
     anime_list = user_list[user_id]["anime_list"]
     anime_number = user_list[user_id]["anime_number"]
