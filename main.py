@@ -40,7 +40,7 @@ def start(message):
     
     user_list[user_id] = {}
 
-    welcome_message = f'<b>Welcome, {username}!</b>\nThis project is implemented using by the <b>Gogoanime API</b>.'
+    welcome_message = f'<b>Welcome, {username}!</b>\n\nThis project is implemented using by the Gogoanime API.'
     
     help_message = '\n\n Helper:' \
             '\n\n/recent - get recent release episodes' \
