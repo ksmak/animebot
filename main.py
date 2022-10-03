@@ -26,10 +26,7 @@ conn = psycopg2.connect(
 cursor = conn.cursor()
 
 # global variables
-anime_list = []
-anime_number = 0
-episode_list = []
-episode_number = 0
+user_list = {}
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -105,9 +102,9 @@ def genre_handler(message):
 # get favorite anime list
 @bot.message_handler(commands=['favorite'])
 def get_favorite(message):
-    global anime_list
-    global anime_number
-    
+    global user_list
+
+    user_id = message.from_user.id
     username = message.from_user.username
    
     cursor.execute(f"SELECT * FROM user_favorites WHERE username='{username}'")
@@ -135,10 +132,14 @@ def get_favorite(message):
     
     bot.send_message(message.chat.id, 'Favorite anime list:', reply_markup=markup)
 
+    user_list[user_id]["anime_list"] = anime_list
+    user_list[user_id]["anime_number"] = 0
+
 # show anime list
 def show_anime_list(message, url, title):
-    global anime_list
-    global anime_number
+    global user_list
+    
+    user_id = message.from_user.id
 
     response = requests.get(url)
     anime_list = response.json()
@@ -153,10 +154,17 @@ def show_anime_list(message, url, title):
     
     bot.send_message(message.chat.id, title, reply_markup=markup)
 
+    user_list[user_id]["anime_list"] = anime_list
+    user_list[user_id]["anime_number"] = 0
+
 # show anime detail
 def show_anime_detail(message, is_favorite=False):
-    global anime_number
-    global episode_list
+    global user_list
+    
+    user_id = message.from_user.id
+    
+    anime_list = user_list[user_id]["anime_list"]
+    anime_number = user_list[user_id]["anime_number"]
     
     if len(anime_list) == 0:
         bot.send_message(message.chat.id, 'List is empty')
@@ -174,7 +182,7 @@ def show_anime_detail(message, is_favorite=False):
             f'\n<u>Genres:</u> {anime["genres"]}' \
             f'\n<u>Total episodes:</u> {anime["totalEpisodes"]}'
         
-        episode_list = anime["episodesList"]
+        user_list[user_id]["episode_list"] = anime["episodesList"]
                 
         markup = types.InlineKeyboardMarkup()
         
@@ -204,13 +212,15 @@ def show_anime_detail(message, is_favorite=False):
 # callback query
 @bot.callback_query_handler(func=lambda call:True)
 def buttons_handler(call):
-    global anime_list
-    global anime_number
-    global episode_number
+    global user_list
+    
+    user_id = call.message.chat.id
+
+    anime_list = user_list[user_id]["anime_list"]
     
     if call.data == 'show_episodes':
         try:
-            episode_number = 0
+            user_list[user_id]["episode_number"] = 0
             show_episodes(call.message)
         except Exception as e:
             print(e)
@@ -238,22 +248,24 @@ def buttons_handler(call):
 
     for n in range(len(anime_list)):
         if call.data == f'details_{n}':
-            anime_number = n
+            user_list[user_id]["anime_number"] = n
             show_anime_detail(call.message)
             return
     
     for n in range(len(anime_list)):
         if call.data == f'favorite_{n}':
-            anime_number = n
+            user_list[user_id]["anime_number"] = n
             show_anime_detail(call.message, is_favorite=True)    
             return        
     
 # show anime episodes
 def show_episodes(message):
-    global anime_list
-    global anime_number
-    global episode_list
-    global episode_number
+    global user_list
+    
+    user_id = message.chat.id
+
+    episode_list = user_list[user_id]["episode_list"]
+    episode_number = user_list[user_id]["episode_number"]
 
     markup = types.InlineKeyboardMarkup(row_width=4)
     buttons = []
@@ -281,10 +293,19 @@ def show_episodes(message):
             types.InlineKeyboardButton('Next episodes', callback_data=f'next_episodes'),    
         )
 
-    bot.send_message(message.chat.id, 'Last episodes: ', reply_markup=markup)        
+    bot.send_message(message.chat.id, 'Last episodes: ', reply_markup=markup)      
+
+    user_list[user_id]["episode_list"] = episode_list
+    user_list[user_id]["episode_number"] = episode_number  
 
 # select episode
 def select_episode(message):
+    global user_list
+    
+    user_id = message.chat.id
+
+    episode_list = user_list[user_id]["episode_list"]
+    
     n = -1
     try:
         n = int(message.text)
@@ -309,10 +330,13 @@ def select_episode(message):
     
 # add anime to favorite list
 def add_favorite(message):
-    global anime_list
-    global anime_number
+    global user_list
     
+    user_id = message.chat.id    
     username = message.chat.username
+
+    anime_list = user_list[user_id]["anime_list"]
+    anime_number = user_list[user_id]["anime_number"]
        
     try:
         cursor.execute(f"SELECT * FROM user_favorites WHERE username='{username}' \
@@ -334,14 +358,20 @@ def add_favorite(message):
     except Exception as e:
         print(e)
         bot.send_message(message.chat.id, 'Sorry, I can\'t write user favorite list')      
+
+    user_list[user_id]["anime_list"] = anime_list
+    user_list[user_id]["anime_number"] = anime_number    
             
 # remove anime from favorites list
 def remove_favorite(message):
-    global anime_list
-    global anime_number
+    global user_list
     
+    user_id = message.chat.id   
     username = message.chat.username
     
+    anime_list = user_list[user_id]["anime_list"]
+    anime_number = user_list[user_id]["anime_number"]
+
     try:
         cursor.execute(f"DELETE FROM user_favorites WHERE username='{username}' \
             AND animeId='{anime_list[anime_number]['animeId']}'")
@@ -352,6 +382,9 @@ def remove_favorite(message):
     except Exception as e:
         print(e)
         bot.send_message(message.chat.id, 'Sorry, I can\'t delete from user favorite list')  
+
+    user_list[user_id]["anime_list"] = anime_list
+    user_list[user_id]["anime_number"] = anime_number    
 
 bot.set_my_commands([
     types.BotCommand("/start", "main menu"),
