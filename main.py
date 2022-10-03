@@ -104,7 +104,7 @@ def genre_handler(message):
 def get_favorite(message):
     global user_list
 
-    user_id = message.from_user.id
+    user_id = str(message.from_user.id)
     username = message.from_user.username
    
     cursor.execute(f"SELECT * FROM user_favorites WHERE username='{username}'")
@@ -139,7 +139,7 @@ def get_favorite(message):
 def show_anime_list(message, url, title):
     global user_list
     
-    user_id = message.from_user.id
+    user_id = str(message.from_user.id)
 
     response = requests.get(url)
     anime_list = response.json()
@@ -161,7 +161,7 @@ def show_anime_list(message, url, title):
 def show_anime_detail(message, is_favorite=False):
     global user_list
     
-    user_id = message.from_user.id
+    user_id = str(message.from_user.id)
     
     anime_list = user_list[user_id]["anime_list"]
     anime_number = user_list[user_id]["anime_number"]
@@ -214,7 +214,7 @@ def show_anime_detail(message, is_favorite=False):
 def buttons_handler(call):
     global user_list
     
-    user_id = call.message.chat.id
+    user_id = str(call.message.chat.id)
 
     anime_list = user_list[user_id]["anime_list"]
     
@@ -262,7 +262,7 @@ def buttons_handler(call):
 def show_episodes(message):
     global user_list
     
-    user_id = message.chat.id
+    user_id = str(message.chat.id)
 
     episode_list = user_list[user_id]["episode_list"]
     episode_number = user_list[user_id]["episode_number"]
@@ -302,7 +302,7 @@ def show_episodes(message):
 def select_episode(message):
     global user_list
     
-    user_id = message.chat.id
+    user_id = str(message.chat.id)
 
     episode_list = user_list[user_id]["episode_list"]
     
@@ -332,7 +332,7 @@ def select_episode(message):
 def add_favorite(message):
     global user_list
     
-    user_id = message.chat.id    
+    user_id = str(message.chat.id)
     username = message.chat.username
 
     anime_list = user_list[user_id]["anime_list"]
@@ -366,7 +366,7 @@ def add_favorite(message):
 def remove_favorite(message):
     global user_list
     
-    user_id = message.chat.id   
+    user_id = str(message.chat.id)
     username = message.chat.username
     
     anime_list = user_list[user_id]["anime_list"]
