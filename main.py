@@ -106,13 +106,12 @@ def genre_handler(message):
 
 # get favorite anime list
 @bot.message_handler(commands=['favorite'])
-def get_favorite(message):
+def show_favorite(message):
     global user_list
 
     user_id = str(message.from_user.id)
-    username = message.from_user.username
-   
-    cursor.execute(f"SELECT * FROM user_favorites WHERE username='{username}'")
+       
+    cursor.execute(f"SELECT * FROM user_favorites WHERE user_id={user_id}")
 
     rows = cursor.fetchall()
 
@@ -267,7 +266,7 @@ def buttons_handler(call):
 def show_episodes(message):
     global user_list
     
-    user_id = str(message.chat.id)
+    user_id = str(message.from_user.id)
 
     episode_list = user_list[user_id]["episode_list"]
     episode_number = user_list[user_id]["episode_number"]
@@ -307,7 +306,7 @@ def show_episodes(message):
 def select_episode(message):
     global user_list
     
-    user_id = str(message.chat.id)
+    user_id = str(message.from_user.id)
 
     episode_list = user_list[user_id]["episode_list"]
     
@@ -337,21 +336,20 @@ def select_episode(message):
 def add_favorite(message):
     global user_list
     
-    user_id = str(message.chat.id)
-    username = message.chat.username
-
+    user_id = str(message.from_user.id)
+    
     anime_list = user_list[user_id]["anime_list"]
     anime_number = user_list[user_id]["anime_number"]
        
     try:
-        cursor.execute(f"SELECT * FROM user_favorites WHERE username='{username}' \
+        cursor.execute(f"SELECT * FROM user_favorites WHERE user_id={user_id} \
             AND animeId='{anime_list[anime_number]['animeId']}'")
         
         rows = cursor.fetchall()
         
         if len(rows) == 0:
-            cursor.execute(f"INSERT INTO user_favorites(username, animeId, animeTitle, animeImg) \
-                VALUES('{username}', '{anime_list[anime_number]['animeId']}', \
+            cursor.execute(f"INSERT INTO user_favorites(user_id, animeId, animeTitle, animeImg) \
+                VALUES({user_id}, '{anime_list[anime_number]['animeId']}', \
                 '{anime_list[anime_number]['animeTitle']}', \
                 '{anime_list[anime_number]['animeImg']}')")
                
@@ -371,14 +369,13 @@ def add_favorite(message):
 def remove_favorite(message):
     global user_list
     
-    user_id = str(message.chat.id)
-    username = message.chat.username
-    
+    user_id = str(message.from_user.id)
+        
     anime_list = user_list[user_id]["anime_list"]
     anime_number = user_list[user_id]["anime_number"]
 
     try:
-        cursor.execute(f"DELETE FROM user_favorites WHERE username='{username}' \
+        cursor.execute(f"DELETE FROM user_favorites WHERE user_id={user_id} \
             AND animeId='{anime_list[anime_number]['animeId']}'")
         
         conn.commit()
