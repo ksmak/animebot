@@ -1,5 +1,3 @@
-from email import message
-from re import A
 from telebot import types
 import telebot
 from config import (
@@ -15,8 +13,17 @@ from config import (
     EPISODE_LIST_PORTION, 
 )
 import requests
-import os
-import json
+import psycopg2
+
+# connect heroku database
+conn = psycopg2.connect(
+    dbname='d8inggurc6rs9', 
+    user='hhajxnbkcgcdbn', 
+    password='22583bff314b7029b044d043fe0ae31c4e0411c11ec3b8e4c6fe0d6589f9b8a0', 
+    host='ec2-44-195-100-240.compute-1.amazonaws.com',
+    port='5432'
+)
+cursor = conn.cursor()
 
 # global variables
 anime_list = []
@@ -55,31 +62,11 @@ def start(message):
 @bot.message_handler(commands=['recent'])
 def get_recent(message):
     show_anime_list(message=message, url=RECENT_RELEASE_ANIME_URL, title='Recent release anime list:')
-    # try:
-    #     response = requests.get(RECENT_RELEASE_ANIME_URL)
-    #     anime_list = response.json()
-    #     anime_number = 0
-    # except Exception as e:
-    #     print(e)
-    #     bot.send_message(message.chat.id, 'Sorry, i can\'t access api service')
-    #     return 
-
-    # show_anime_detail(message) 
 
 # get popular anime list
 @bot.message_handler(commands=['popular'])
 def get_popular(message):
     show_anime_list(message=message, url=POPULAR_ANIME_URL, title='Popular anime list:')
-    # try:
-    #     response = requests.get(POPULAR_ANIME_URL)
-    #     anime_list = response.json()
-    #     anime_number = 0
-    # except Exception as e:
-    #     print(e)
-    #     bot.send_message(message.chat.id, 'Sorry, i can\'t access api service')
-    #     return
-
-    # show_anime_detail(message) 
 
 # search anime
 @bot.message_handler(commands=['search'])
@@ -90,47 +77,17 @@ def search(message):
 # search next step handler
 def search_handler(message):
     show_anime_list(message=message, url=f'{SEARCH_ANIME_URL}?keyw={message.text.lower()}', title='Found anime list:')
-    # try:
-    #     response = requests.get(f'{SEARCH_ANIME_URL}?keyw={message.text.lower()}')
-    #     anime_list = response.json()
-    #     anime_number = 0
-    # except Exception as e:
-    #     print(e)
-    #     bot.send_message(message.chat.id, 'Sorry, i can\'t access api service')
-    #     return    
-
-    # show_anime_detail(message) 
 
 # get anime movies
 @bot.message_handler(commands=['movies'])
 def get_movies(message):
     show_anime_list(message=message, url=MOVIES_ANIME_URL, title='Movies anime list:')
-    # try:
-    #     response = requests.get(MOVIES_ANIME_URL)
-    #     anime_list = response.json()
-    #     anime_number = 0
-    # except Exception as e:
-    #     print(e)
-    #     bot.send_message(message.chat.id, 'Sorry, i can\'t access api service')
-    #     return    
-
-    # show_anime_detail(message) 
 
 # get top airing anime
 @bot.message_handler(commands=['top_airing'])
 def get_top_airing(message):
     show_anime_list(message=message, url=TOP_AIRING_URL, title='Top airing anime list:')
-    # try:
-    #     response = requests.get(TOP_AIRING_URL)
-    #     anime_list = response.json()
-    #     anime_number = 0
-    # except Exception as e:
-    #     print(e)
-    #     bot.send_message(message.chat.id, 'Sorry, i can\'t access api service')
-    #     return
-
-    # show_anime_detail(message) 
-
+    
 # get genre anime
 @bot.message_handler(commands=['genre'])
 def get_genre(message):
@@ -144,16 +101,6 @@ def genre_handler(message):
         return
     
     show_anime_list(message=message, url=f'{GENRE_ANIME_URL}/{message.text.lower()}', title='Genre anime list:')
-    # try:
-    #     response = requests.get(f'{GENRE_ANIME_URL}/{message.text.lower()}')
-    #     anime_list = response.json()
-    #     anime_number = 0
-    # except Exception as e:
-    #     print(e)
-    #     bot.send_message(message.chat.id, 'Sorry, i can\'t access api service')
-    #     return    
-
-    # show_anime_detail(message) 
 
 # get favorite anime list
 @bot.message_handler(commands=['favorite'])
@@ -162,31 +109,30 @@ def get_favorite(message):
     global anime_number
     
     username = message.from_user.username
-    user_file = f'user_favorites\{username}.txt'
+   
+    cursor.execute(f"SELECT * FROM user_favorites WHERE username='{username}'")
 
-    try:
-        anime_list = []
-        if os.path.exists(user_file):
-            f = open(user_file, "r")
-            json_content = f.read()
-            anime_list = json.loads(json_content)
-            f.close()
-    except Exception as e:
-        print(e)
-        bot.send_message(message.chat.id, 'Sorry, i can\'t access user favorite file.')
-        return
+    rows = cursor.fetchall()
 
-    if len(anime_list) == 0:
-        bot.send_message(message.chat.id, 'Favorites list is empty.')
-        return
+    anime_list = []
+    
+    for row in rows:
+        anime_json = {
+            "animeId": row[2],
+            "animeTitle": row[3],
+            "animeImg": row[4],
+        }
+        anime_list.append(anime_json)
 
     markup = types.InlineKeyboardMarkup()
+    
     n = 0
     for anime in anime_list:
          markup.add(
              types.InlineKeyboardButton(anime["animeTitle"], callback_data=f'favorite_{n}')
          )
          n += 1
+    
     bot.send_message(message.chat.id, 'Favorite anime list:', reply_markup=markup)
 
 # show anime list
@@ -204,6 +150,7 @@ def show_anime_list(message, url, title):
              types.InlineKeyboardButton(anime["animeTitle"], callback_data=f'details_{n}')
          )
          n += 1
+    
     bot.send_message(message.chat.id, title, reply_markup=markup)
 
 # show anime detail
@@ -244,25 +191,15 @@ def show_anime_detail(message, is_favorite=False):
                 types.InlineKeyboardButton('⭐ Add favorite', callback_data=f'add_favorite')
             )
 
-        show_photo(message, anime_list[anime_number]["animeId"], 
-            anime_list[anime_number]["animeImg"], caption, markup)
+        bot.send_photo(message.chat.id, 
+            photo=anime_list[anime_number]["animeImg"], 
+            caption=caption, parse_mode='html', 
+            reply_markup=markup)    
 
     except Exception as e:
         print(e)
         bot.send_message(message.chat.id, 'Sorry, i can\'t show anime details.')
         return
-
-# show anime photo
-def show_photo(message, anime_id, url, caption, markup):
-    image_file = f'img/{anime_id}.png'
-
-    if not os.path.exists(image_file):
-        r = requests.get(url)
-        with open(image_file, 'wb') as f:
-            f.write(r.content)
-
-    with open(image_file, 'rb') as f:
-        bot.send_photo(message.chat.id, photo=f, caption=caption, reply_markup=markup, parse_mode='html')
 
 # callback query
 @bot.callback_query_handler(func=lambda call:True)
@@ -376,40 +313,27 @@ def add_favorite(message):
     global anime_number
     
     username = message.chat.username
-    user_file = f'user_favorites\{username}.txt'
-
-    favorite_list = []
-    if os.path.exists(user_file):
-        try:
-            f = open(user_file, "r")
-            json_content = f.read()
-            favorite_list = json.loads(json_content)
-        except Exception as e:
-            print(e)
-            bot.send_message(message.chat.id, 'Sorry, I can\'t read user favorite file')
-        finally:
-            f.close()
-
-    
-    if is_not_duplicate(favorite_list, anime_list[anime_number]):
-        anime_json = {
-            "animeId": anime_list[anime_number]["animeId"],
-            "animeTitle": anime_list[anime_number]["animeTitle"],
-            "animeImg": anime_list[anime_number]["animeImg"],
-        }
-        favorite_list.append(anime_json)
-        jsonString = json.dumps(favorite_list)
-        try:
-            f = open(user_file, "w")
-            f.write(jsonString)
+       
+    try:
+        cursor.execute(f"SELECT * FROM user_favorites WHERE username='{username}' \
+            AND animeId='{anime_list[anime_number]['animeId']}'")
+        
+        rows = cursor.fetchall()
+        
+        if len(rows) == 0:
+            cursor.execute(f"INSERT INTO user_favorites(username, animeId, animeTitle, animeImg) \
+                VALUES('{username}', '{anime_list[anime_number]['animeId']}', \
+                '{anime_list[anime_number]['animeTitle']}', \
+                '{anime_list[anime_number]['animeImg']}')")
+               
+            conn.commit()
             bot.send_message(message.chat.id, 'The anime added to favorites.')
-        except Exception as e:
-            print(e)
-            bot.send_message(message.chat.id, 'Sorry, I can\'t write user favorite file')    
-        finally:    
-            f.close()
-    else:
-        bot.send_message(message.chat.id, 'The anime already added to favorites.')        
+        else:
+            bot.send_message(message.chat.id, 'The anime already added to favorites.')    
+       
+    except Exception as e:
+        print(e)
+        bot.send_message(message.chat.id, 'Sorry, I can\'t write user favorite list')      
             
 # remove anime from favorites list
 def remove_favorite(message):
@@ -417,43 +341,17 @@ def remove_favorite(message):
     global anime_number
     
     username = message.chat.username
-    user_file = f'user_favorites\{username}.txt'
-
-    favorite_list = []
-    if os.path.exists(user_file):
-        try:
-            f = open(user_file, "r")
-            json_content = f.read()
-            favorite_list = json.loads(json_content)
-        except Exception as e:
-            print(e)
-            bot.send_message(message.chat.id, 'Sorry, I can\'t read user favorite file')
-        finally:
-            f.close()
-
-    anime_json = {
-        "animeId": anime_list[anime_number]["animeId"],
-        "animeTitle": anime_list[anime_number]["animeTitle"],
-        "animeImg": anime_list[anime_number]["animeImg"],
-    }
-    favorite_list.remove(anime_json)
-    jsonString = json.dumps(favorite_list)
+    
     try:
-        f = open(user_file, "w")
-        f.write(jsonString)
+        cursor.execute(f"DELETE FROM user_favorites WHERE username='{username}' \
+            AND animeId='{anime_list[anime_number]['animeId']}'")
+        
+        conn.commit()
+        
         bot.send_message(message.chat.id, 'The anime removed from favorites')
     except Exception as e:
         print(e)
-        bot.send_message(message.chat.id, 'Sorry, I can\'t write user favorite file')    
-    finally:    
-        f.close()          
-
-# check duplicat element in list
-def is_not_duplicate(elements, elem):
-    for e in elements:
-        if e["animeId"] == elem["animeId"]:
-            return False
-    return True        
+        bot.send_message(message.chat.id, 'Sorry, I can\'t delete from user favorite list')  
 
 bot.set_my_commands([
     types.BotCommand("/start", "main menu"),
